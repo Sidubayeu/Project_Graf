@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
+
 //pomoc dla uytkownika
 void help(){
 

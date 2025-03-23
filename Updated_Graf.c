@@ -155,7 +155,7 @@ int main(int argc, char *argv[]) {
 
     int best_cut = nv * nv;
 
-    for (int j = 0; j < 100000; j++) {
+    for (int j = 0; j < 5000; j++) {
         for (int i = 0; i < nv; i++)
             d1[i] = -1;
 
@@ -205,7 +205,7 @@ int main(int argc, char *argv[]) {
     if (output_file) {
         FILE *fout = fopen(output_file, "w");
         for (int i = 0; i < parts; i++) {
-            fprintf(fout, "%d", i + 1);
+            fprintf(fout, "%d\n", i + 1);
             for (int j = 0; j < nv; j++)
                 if (dbest[j] == i) fprintf(fout, " %d", j);
             fprintf(fout, "\n");
@@ -214,7 +214,7 @@ int main(int argc, char *argv[]) {
         fclose(fout);
     } else {
         for (int i = 0; i < parts; i++) {
-            printf("%d", i + 1);
+            printf("%d\n", i + 1);
             for (int j = 0; j < nv; j++)
                 if (dbest[j] == i) printf(" %d", j);
             printf("\n");

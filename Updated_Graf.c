@@ -67,9 +67,10 @@ void Convert(char s[10000000]) {
 int countCuts(int nv, int parts) {
     int cuts = 0;
     for (int i = 0; i < nv; i++) {
-        for (int j = i + 1; j < nv; j++) {
-            if (a[i][j] == 1 && d1[i] != d1[j])
+        for (int j = 0; j < nv; j++) {
+            if (a[i][j] == 1 && d1[i] != d1[j] && i < j) {
                 cuts++;
+            }
         }
     }
     return cuts;
@@ -155,7 +156,7 @@ int main(int argc, char *argv[]) {
 
     int best_cut = nv * nv;
 
-    for (int j = 0; j < 5000; j++) {
+    for (int j = 0; j < 1000; j++) {
         for (int i = 0; i < nv; i++)
             d1[i] = -1;
 

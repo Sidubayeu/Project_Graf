@@ -8,6 +8,25 @@
 const int qmax = 1000000;
 int q[1000000], q1 = 0, q2 = 0;
 
+void help(){
+printf("Uzycie:\n");
+printf("    program -in [plik_wejsciowy] -out [plik_wyjsciowy] -parts [liczba_czesci] -margin [margines] -format [txt/csrrg]\n\n");
+
+printf("Opcje:\n");
+printf("    -h            Wyswietla ten tekst pomocy.\n");
+printf("    -in           Okresla sciezke do pliku wejsciowego.\n");
+printf("    -out          Okresla sciezke do pliku wyjsciowego.\n");
+printf("    -parts        Okresla liczbe czesci, na ktore ma byc podzielony graf (domyslnie 2).\n");
+printf("    -margin       Okresla dopuszczalny margines procentowy roznicy miedzy czesciami (domyslnie 10%%).\n");
+printf("    -format       Okresla format pliku wyjsciowego: \"txt\" lub \"csrrg\" (domyslnie \"txt\").\n\n");
+
+printf("Przyklad uzycia:\n");
+printf("    program -in graf.csrrg -out wynik.txt -parts 3 -margin 15 -format txt\n\n");
+
+printf("Opis:\n");
+printf("    Program dzieli graf na okreslona liczbe czesci, minimalizujac liczbe przecietych krawedzi i\n");
+printf("    uwzgledniajac zadany margines roznicy miedzy liczba wierzcholkow w czesciach.\n");
+}
 void InQ(int x) {
     q[q1] = x; 
     q1++;
@@ -64,7 +83,8 @@ int main(int argc, char *argv[]) {
     char *format = "txt";
 
     for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "-in") == 0 && i + 1 < argc) input_file = argv[++i];
+	if (strcmp(argv[i], "-h") == 0) help();
+        else if (strcmp(argv[i], "-in") == 0 && i + 1 < argc) input_file = argv[++i];
         else if (strcmp(argv[i], "-out") == 0 && i + 1 < argc) output_file = argv[++i];
         else if (strcmp(argv[i], "-parts") == 0 && i + 1 < argc) parts = atoi(argv[++i]);
         else if (strcmp(argv[i], "-margin") == 0 && i + 1 < argc) margin = atoi(argv[++i]);

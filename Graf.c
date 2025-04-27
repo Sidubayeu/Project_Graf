@@ -62,7 +62,7 @@ void Convert(char s[10000000]){
             b[nb] = xx;
             nb++;
             xx = 0;
-        }
+        } 
     b[nb] = xx;
     nb++;
 }
@@ -92,6 +92,7 @@ int main(int argc, char* argv[]){
         else if (strcmp(argv[i], "-out") == 0 && i + 1 < argc) output_file = argv[++i];
         else if (strcmp(argv[i], "-parts") == 0 && i + 1 < argc) parts = atoi(argv[++i]);
         else if (strcmp(argv[i], "-margin") == 0 && i + 1 < argc) margin = atoi(argv[++i]);
+        else if (strcmp(argv[i], "-format") == 0 && i + 1 < argc) format = argv[++i];
     }
 
     if (!input_file) {
@@ -214,44 +215,70 @@ int main(int argc, char* argv[]){
             if (kparts[i] > localmax)
                 localmax = kparts[i];
         }
-        if (localmax - localmin < bestmax - bestmin){
-            bestmax = localmax; bestmin = localmin;
+
+        int max_allowed_diff = (margin * nv) / 100;
+        if (localmax - localmin <= max_allowed_diff && localmax - localmin < bestmax - bestmin){
+            bestmax = localmax;
+            bestmin = localmin;
             for (int i = 0; i < nv; i++)
                 dbest[i] = d1[i];
         }
     }
 
-int cuts = countCuts(nv);
+    int cuts = countCuts(nv);
         
- if (output_file) {
-        FILE *fout = fopen(output_file, "w");
-        for (int i = 0; i < parts; i++) {
-            fprintf(fout, "Czesc numer: %d\n", i + 1);
-		int count2 = 0;
-            for (int j = 0; j < nv; j++)
-                if (dbest[j] == i){ 
-                    fprintf(fout, " %d", j); count2++;
-                }
-	    fprintf(fout, "\n");
-            fprintf(fout, "Ilosc wierzcholkow: %d", count2); 
-	    fprintf(fout, "\n");
+    if (output_file) {
+        if (strcmp(format, "bin") == 0) {
+            FILE *fout = fopen(output_file, "wb");
+            if (!fout) {
+                printf("nie mozna otworzyc pliku\n");
+                return 1;
+            }
+            fwrite(&parts, sizeof(int), 1, fout);
+            fwrite(&cuts, sizeof(int), 1, fout);
+            for (int i = 0; i < parts; i++) {
+                int count = 0;
+                for (int j = 0; j < nv; j++)
+                    if (dbest[j] == i) count++;
+                fwrite(&count, sizeof(int), 1, fout);
+                for (int j = 0; j < nv; j++)
+                    if (dbest[j] == i)
+                        fwrite(&j, sizeof(int), 1, fout);
+            }
+            fclose(fout);
+        } else {
+            FILE *fout = fopen(output_file, "w");
+            if (!fout) {
+                printf("nie mozna otworzyc pliku\n");
+                return 1;
+            }
+            for (int i = 0; i < parts; i++) {
+                fprintf(fout, "Czesc numer: %d\n", i + 1);
+                int count2 = 0;
+                for (int j = 0; j < nv; j++)
+                    if (dbest[j] == i){ 
+                        fprintf(fout, " %d", j);
+                        count2++;
+                    }
+                fprintf(fout, "\n");
+                fprintf(fout, "Ilosc wierzcholkow: %d\n", count2);
+            }
+            fprintf(fout, "Ilosc preciec: %d\n", cuts);
+            fclose(fout);
         }
-
-        fprintf(fout, "Ilosc preciec: %d", cuts);
-       
-        fclose(fout);
     } else {
         for (int i = 0; i < parts; i++) {
             printf("Czesc numer: %d\n", i + 1);
+            int count2 = 0;
             for (int j = 0; j < nv; j++)
-                if (dbest[j] == i) printf("Ilosc wierzcholkow: %d", j);
-            printf("\n");
+                if (dbest[j] == i){
+                    printf(" %d", j);
+                    count2++;
+                }
+            printf("\nIlosc wierzcholkow: %d\n", count2);
         }
-
-            printf("Ilosc przeciec: %d", cuts);
-       
+        printf("Ilosc przeciec: %d\n", cuts);
     }
-
     
     return 0;
 }

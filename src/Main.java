@@ -20,7 +20,7 @@ public class Main  {
         pomoc.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-
+                help();
             }
         });
 
@@ -64,7 +64,13 @@ public class Main  {
     }
 
     public static void help(){
-
+        JFrame help = new JFrame("Help");
+        help.setSize(1920, 800);
+        help.setLayout(null);
+        JLabel for_help = new JLabel("Tu wpisać pomoc:");
+        for_help.setBounds(600, 100, 300, 30);
+        help.add(for_help);
+        help.setVisible(true);
     }
 
 }

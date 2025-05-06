@@ -1,6 +1,11 @@
 import javax.swing.*;
 import java.awt.event.*;
 public class Main  {
+    public static int margin = 10;
+    public static int tryb = 0;
+    public static int parts = 2;
+    public static String nazw_plik;
+
     public static void main(String[] args){
         JFrame frame = new JFrame("Menu");
         frame.setLayout(null);
@@ -57,6 +62,21 @@ public class Main  {
         JTextField textField_margin = new JTextField();
         textField_margin.setBounds(600, 125, 200, 25);
         frame.add(textField_margin);
+
+        button.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                tryb = Integer.parseInt(textField_tryb.getText());
+                nazw_plik = textField_plik.getText();
+                if(tryb == 1){
+                    parts = Integer.parseInt(textField_parts.getText());
+                    margin = Integer.parseInt(textField_margin.getText());
+                }
+
+
+
+            }
+        });
 
 
 

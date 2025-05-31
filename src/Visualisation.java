@@ -1,75 +1,191 @@
 import javax.swing.*;
 import java.awt.*;
-import java.io.IOException;
-import java.util.*;
+import java.awt.event.*;
+import java.awt.geom.*;
 import java.util.List;
-import java.io.BufferedReader;
-import java.io.FileReader;
+import java.util.Map;
+import java.util.Set;
 
-public class Visualisation extends JPanel {
-    private Map<Integer, Point> nodePositions;
-    private Map<Integer, List<Integer>> edges;
-    private List<Set<Integer>> parts;
+public class Visualisation extends JFrame {
+    private Map<Integer, Set<Integer>> graph;
+    private List<Set<Integer>> partitions;
+    private int margin;
+    private double scale = 1.0;
+    private Point2D.Double translate = new Point2D.Double(0, 0);
+    private Point lastMousePos;
 
-    public Visualisation(String path, List<Set<Integer>> parts){
-        this.parts = parts;
-        this.edges = new HashMap<>();
-        this.nodePositions = new HashMap<>();
+    public Visualisation(Map<Integer, Set<Integer>> graph, List<Set<Integer>> partitions, int margin) {
+        this.graph = graph;
+        this.partitions = partitions;
+        this.margin = margin;
 
-        try {
-            BufferedReader reader = new BufferedReader(new FileReader(path));
-            String line;
-            while((line = reader.readLine()) != null){
-                String[] partsLine = line.trim().split(" ");
-                if (partsLine.length != 2) continue;
+        setTitle("Graph Partition Visualization - Scroll to zoom, Drag to pan");
+        setSize(1000, 800);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setLocationRelativeTo(null);
 
-                int a = Integer.parseInt(partsLine[0]);
-                int b = Integer.parseInt(partsLine[1]);
+        GraphPanel panel = new GraphPanel();
 
-                edges.computeIfAbsent(a, k -> new ArrayList<>()).add(b);
-                edges.computeIfAbsent(b, k -> new ArrayList<>()).add(a);
+        // Dodajemy obsługę scrolla do zoomowania
+        panel.addMouseWheelListener(new MouseWheelListener() {
+            @Override
+            public void mouseWheelMoved(MouseWheelEvent e) {
+                double zoomFactor = e.getWheelRotation() < 0 ? 1.1 : 0.9;
+                scale *= zoomFactor;
+                scale = Math.max(0.1, Math.min(scale, 5.0)); // Ograniczamy zakres zoomu
+                panel.repaint();
             }
-            reader.close();
-        } catch (Exception e){
-            e.printStackTrace();
+        });
+
+        // Dodajemy obsługę przeciągania do przesuwania
+        panel.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                lastMousePos = e.getPoint();
+            }
+        });
+
+        panel.addMouseMotionListener(new MouseMotionAdapter() {
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                if (lastMousePos != null) {
+                    Point current = e.getPoint();
+                    translate.x += (current.x - lastMousePos.x) / scale;
+                    translate.y += (current.y - lastMousePos.y) / scale;
+                    lastMousePos = current;
+                    panel.repaint();
+                }
+            }
+        });
+
+        // Przycisk resetujący widok
+        JButton resetButton = new JButton("Reset View");
+        resetButton.addActionListener(e -> {
+            scale = 1.0;
+            translate.setLocation(0, 0);
+            panel.repaint();
+        });
+
+        JPanel controlPanel = new JPanel();
+        controlPanel.add(resetButton);
+
+        getContentPane().setLayout(new BorderLayout());
+        getContentPane().add(panel, BorderLayout.CENTER);
+        getContentPane().add(controlPanel, BorderLayout.SOUTH);
+    }
+
+    private class GraphPanel extends JPanel {
+        private static final int NODE_RADIUS = 20;
+        private static final int PADDING = 50;
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            Graphics2D g2d = (Graphics2D) g;
+            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            // Stosujemy transformacje (zoom i przesunięcie)
+            AffineTransform oldTransform = g2d.getTransform();
+            g2d.translate(getWidth()/2, getHeight()/2);
+            g2d.scale(scale, scale);
+            g2d.translate(translate.x, translate.y);
+
+            int width = getWidth();
+            int height = getHeight();
+
+            // Rysowanie krawędzi
+            g2d.setColor(Color.LIGHT_GRAY);
+            for (Map.Entry<Integer, Set<Integer>> entry : graph.entrySet()) {
+                int node1 = entry.getKey();
+                Point p1 = getNodePosition(node1, width, height);
+
+                for (int node2 : entry.getValue()) {
+                    Point p2 = getNodePosition(node2, width, height);
+                    g2d.drawLine(p1.x, p1.y, p2.x, p2.y);
+                }
+            }
+
+            // Rysowanie wierzchołków z kolorami partycji
+            Color[] partitionColors = {
+                    Color.RED, Color.BLUE, Color.GREEN, Color.ORANGE,
+                    Color.MAGENTA, Color.CYAN, Color.PINK, Color.YELLOW
+            };
+
+            for (int i = 0; i < partitions.size(); i++) {
+                Color color = i < partitionColors.length ? partitionColors[i] : Color.GRAY;
+                g2d.setColor(color);
+
+                for (int node : partitions.get(i)) {
+                    Point p = getNodePosition(node, width, height);
+                    g2d.fillOval(p.x - NODE_RADIUS/2, p.y - NODE_RADIUS/2, NODE_RADIUS, NODE_RADIUS);
+
+                    // Etykieta wierzchołka
+                    g2d.setColor(Color.BLACK);
+                    g2d.drawString(String.valueOf(node), p.x - 5, p.y + 5);
+                    g2d.setColor(color);
+                }
+            }
+
+            // Przywracamy oryginalną transformację dla legendy
+            g2d.setTransform(oldTransform);
+
+            // Legenda
+            g2d.setColor(Color.BLACK);
+            g2d.drawString("Partitions:", width - 150, 30);
+            g2d.drawString(String.format("Zoom: %.1fx", scale), 20, 30);
+
+            for (int i = 0; i < partitions.size(); i++) {
+                Color color = i < partitionColors.length ? partitionColors[i] : Color.GRAY;
+                g2d.setColor(color);
+                g2d.fillRect(width - 150, 50 + i * 30, 20, 20);
+                g2d.setColor(Color.BLACK);
+                g2d.drawString("Part " + (i+1) + " (" + partitions.get(i).size() + " nodes)",
+                        width - 120, 65 + i * 30);
+            }
         }
 
-        Random rand = new Random();
-        for (Integer node : edges.keySet()){
-            nodePositions.put(node, new Point(rand.nextInt(1800) + 50, rand.nextInt(700) + 50));
+        private Point getNodePosition(int node, int width, int height) {
+            // Znajdź partycję węzła
+            int partitionIndex = -1;
+            for (int i = 0; i < partitions.size(); i++) {
+                if (partitions.get(i).contains(node)) {
+                    partitionIndex = i;
+                    break;
+                }
+            }
+
+            if (partitionIndex == -1) {
+                return new Point(0, 0);
+            }
+
+            // Rozkład partycji w okręgach
+            int numPartitions = partitions.size();
+            double angle = 2 * Math.PI * partitionIndex / numPartitions;
+
+            int radius = Math.min(width, height)/3;
+
+            // Pozycja środka partycji
+            int partitionCenterX = (int)(radius * Math.cos(angle));
+            int partitionCenterY = (int)(radius * Math.sin(angle));
+
+            // Pozycja węzła w partycji
+            int nodesInPartition = partitions.get(partitionIndex).size();
+            int nodeIndex = new java.util.ArrayList<>(partitions.get(partitionIndex)).indexOf(node);
+
+            double nodeAngle = 2 * Math.PI * nodeIndex / nodesInPartition;
+            int nodeRadius = NODE_RADIUS * 2;
+
+            int x = partitionCenterX + (int)(nodeRadius * Math.cos(nodeAngle));
+            int y = partitionCenterY + (int)(nodeRadius * Math.sin(nodeAngle));
+
+            return new Point(x, y);
         }
     }
-    @Override
-    protected void paintComponent(Graphics g){
-        super.paintComponent(g);
 
-        Color[] colors = {Color.RED, Color.GREEN, Color.BLUE, Color.ORANGE, Color.MAGENTA, Color.CYAN};
-
-        g.setColor(Color.LIGHT_GRAY);
-        for (Map.Entry<Integer, List<Integer>> entry : edges.entrySet()) {
-            Point p1 = nodePositions.get(entry.getKey());
-            for (int neighbor : entry.getValue()) {
-                Point p2 = nodePositions.get(neighbor);
-                g.drawLine(p1.x, p1.y, p2.x, p2.y);
-            }
-        }
-
-        int partIndex = 0;
-        for (Set<Integer> part : parts){
-            g.setColor(colors[partIndex % colors.length]);
-            for (int node : part){
-                Point p = nodePositions.get(node);
-                g.fillOval(p.x - 5, p.y - 5, 10, 10);
-            }
-            partIndex++;
-        }
-    }
-
-    public static void show(String path, List<Set<Integer>> parts){
-        JFrame frame = new JFrame("Wizualizator grafu");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(1920, 800);
-        frame.add(new Visualisation(path, parts));
-        frame.setVisible(true);
+    public static void showVisualisation(Map<Integer, Set<Integer>> graph, List<Set<Integer>> partitions, int margin) {
+        SwingUtilities.invokeLater(() -> {
+            Visualisation visualisation = new Visualisation(graph, partitions, margin);
+            visualisation.setVisible(true);
+        });
     }
 }

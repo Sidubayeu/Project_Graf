@@ -43,12 +43,17 @@ public class Dividing {
     }
 
     public static List<Set<Integer>> partitionGraph(Map<Integer, Set<Integer>> graph, int numParts, int margin) {
-        int numAttempts = 10000; // можно уменьшить, т.к. более умный алгоритм
+        int numAttempts = 10000;
         List<Set<Integer>> bestPartition = null;
         int bestCut = Integer.MAX_VALUE;
 
+        int totalNodes = graph.size();
+        int targetSize = (int) Math.ceil((double) totalNodes / numParts);
+        int marginAbs = (int) Math.floor(targetSize * (margin / 100.0));
+        int minSize = Math.max(1, targetSize - marginAbs);
+        int maxSize = targetSize + marginAbs;
+
         for (int attempt = 0; attempt < numAttempts; attempt++) {
-            // 1. Инициализация
             List<Set<Integer>> partitions = new ArrayList<>();
             for (int i = 0; i < numParts; i++) partitions.add(new HashSet<>());
 
@@ -56,60 +61,75 @@ public class Dividing {
             List<Integer> nodes = new ArrayList<>(graph.keySet());
             Collections.shuffle(nodes);
 
-            int targetSize = (int) Math.ceil((double) graph.size() / numParts);
-            int maxSize = targetSize + margin;
-
-            // 2. Распределение узлов
+            // Najpierw rozdziel węzły gwarantując minimalny rozmiar
             for (int node : nodes) {
                 int bestPart = -1;
                 int maxNeighborsInPart = -1;
 
-                // Ищем часть, где больше соседей уже есть
+                // Szukaj części która:
+                // 1. Nie przekracza maxSize
+                // 2. Ma najmniej węzłów jeśli wszystkie są za małe
                 for (int i = 0; i < numParts; i++) {
                     if (partitions.get(i).size() >= maxSize) continue;
 
-                    int count = 0;
-                    for (int neighbor : graph.get(node)) {
-                        if (partitions.get(i).contains(neighbor)) count++;
+                    // Priorytet dla części które są poniżej minSize
+                    if (partitions.get(i).size() < minSize) {
+                        bestPart = i;
+                        break;
                     }
 
+                    // Jeśli wszystkie części są w [minSize, maxSize), wybierz tę z najwięcej sąsiadami
+                    int count = countNeighborsInPart(graph, node, partitions.get(i));
                     if (count > maxNeighborsInPart || bestPart == -1) {
                         bestPart = i;
                         maxNeighborsInPart = count;
                     }
                 }
 
-                // Если не нашли — кидаем в наименьшую часть
                 if (bestPart == -1) {
-                    int minSize = Integer.MAX_VALUE;
-                    for (int i = 0; i < numParts; i++) {
-                        if (partitions.get(i).size() < minSize) {
-                            minSize = partitions.get(i).size();
-                            bestPart = i;
-                        }
-                    }
+                    bestPart = findSmallestPart(partitions);
                 }
 
                 partitions.get(bestPart).add(node);
                 nodeToPart.put(node, bestPart);
             }
 
-            // 3. Оценка разрезанных рёбер
-            int cutEdges = countCutEdges(graph, partitions);
-            if (cutEdges < bestCut) {
-                bestCut = cutEdges;
-                bestPartition = partitions;
+            // Sprawdź czy wszystkie części są w dopuszczalnym zakresie
+            boolean valid = true;
+            for (Set<Integer> part : partitions) {
+                if (part.size() < minSize || part.size() > maxSize) {
+                    valid = false;
+                    break;
+                }
+            }
+
+            if (valid) {
+                int cutEdges = countCutEdges(graph, partitions);
+                if (cutEdges < bestCut) {
+                    bestCut = cutEdges;
+                    bestPartition = partitions;
+                }
             }
         }
 
+        if (bestPartition == null) {
+            throw new IllegalStateException("Nie udało się znaleźć partycji spełniającej warunek marginesu.");
+        }
         return bestPartition;
     }
 
-
+    // Pomocnicze metody
+    private static int countNeighborsInPart(Map<Integer, Set<Integer>> graph, int node, Set<Integer> part) {
+        int count = 0;
+        for (int neighbor : graph.getOrDefault(node, Collections.emptySet())) {
+            if (part.contains(neighbor)) count++;
+        }
+        return count;
+    }
     public static int countCutEdges(Map<Integer, Set<Integer>> graph, List<Set<Integer>> partitions) {
         Map<Integer, Integer> vertexToPartition = new HashMap<>();
 
-        // Определим, к какой части принадлежит каждая вершина
+        // Przypisz każdy wierzchołek do odpowiedniej partycji
         for (int i = 0; i < partitions.size(); i++) {
             for (int vertex : partitions.get(i)) {
                 vertexToPartition.put(vertex, i);
@@ -117,26 +137,56 @@ public class Dividing {
         }
 
         int cutEdges = 0;
-        Set<String> counted = new HashSet<>();
+        Set<String> countedEdges = new HashSet<>(); // Aby uniknąć podwójnego liczenia
 
         for (Map.Entry<Integer, Set<Integer>> entry : graph.entrySet()) {
             int v1 = entry.getKey();
-            int part1 = vertexToPartition.getOrDefault(v1, -1);
-            for (int v2 : entry.getValue()) {
-                int part2 = vertexToPartition.getOrDefault(v2, -1);
+            Integer part1 = vertexToPartition.get(v1);
 
-                if (part1 != -1 && part2 != -1 && part1 != part2) {
-                    // Уникальное представление ребра (min,max), чтобы не считать дважды
-                    String edgeKey = Math.min(v1, v2) + "-" + Math.max(v1, v2);
-                    if (!counted.contains(edgeKey)) {
-                        counted.add(edgeKey);
-                        cutEdges++;
-                    }
+            // Jeśli wierzchołek nie jest w żadnej partycji, pomiń
+            if (part1 == null) continue;
+
+            for (int v2 : entry.getValue()) {
+                Integer part2 = vertexToPartition.get(v2);
+
+                // Jeśli któryś z wierzchołków nie jest w partycji lub są w tej samej partycji, pomiń
+                if (part2 == null || part1.equals(part2)) continue;
+
+                // Unikaj podwójnego liczenia krawędzi
+                String edgeKey = v1 < v2 ? v1 + "-" + v2 : v2 + "-" + v1;
+                if (!countedEdges.contains(edgeKey)) {
+                    countedEdges.add(edgeKey);
+                    cutEdges++;
                 }
             }
         }
 
         return cutEdges;
+    }
+
+    private static int findSmallestPart(List<Set<Integer>> partitions) {
+        int minSize = Integer.MAX_VALUE;
+        int bestPart = 0;
+        for (int i = 0; i < partitions.size(); i++) {
+            if (partitions.get(i).size() < minSize) {
+                minSize = partitions.get(i).size();
+                bestPart = i;
+            }
+        }
+        return bestPart;
+    }
+
+    private static List<Set<Integer>> createFallbackPartition(Map<Integer, Set<Integer>> graph, int numParts) {
+        // Awaryjne równomierne partycjonowanie gdy nie uda się spełnić marginesów
+        List<Set<Integer>> partitions = new ArrayList<>();
+        for (int i = 0; i < numParts; i++) partitions.add(new HashSet<>());
+
+        int counter = 0;
+        for (int node : graph.keySet()) {
+            partitions.get(counter % numParts).add(node);
+            counter++;
+        }
+        return partitions;
     }
 
 
@@ -242,6 +292,4 @@ public class Dividing {
             }
         }
     }
-
-
 }

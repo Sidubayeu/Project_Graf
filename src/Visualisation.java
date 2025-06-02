@@ -26,7 +26,6 @@ public class Visualisation extends JFrame {
 
         GraphPanel panel = new GraphPanel();
 
-        // Dodajemy obsługę scrolla do zoomowania
         panel.addMouseWheelListener(new MouseWheelListener() {
             @Override
             public void mouseWheelMoved(MouseWheelEvent e) {
@@ -37,7 +36,6 @@ public class Visualisation extends JFrame {
             }
         });
 
-        // Dodajemy obsługę przeciągania do przesuwania
         panel.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
@@ -58,7 +56,7 @@ public class Visualisation extends JFrame {
             }
         });
 
-        // Przycisk resetujący widok
+        // reset view
         JButton resetButton = new JButton("Reset View");
         resetButton.addActionListener(e -> {
             scale = 1.0;
@@ -84,7 +82,6 @@ public class Visualisation extends JFrame {
             Graphics2D g2d = (Graphics2D) g;
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-            // Stosujemy transformacje (zoom i przesunięcie)
             AffineTransform oldTransform = g2d.getTransform();
             g2d.translate(getWidth()/2, getHeight()/2);
             g2d.scale(scale, scale);
@@ -93,7 +90,6 @@ public class Visualisation extends JFrame {
             int width = getWidth();
             int height = getHeight();
 
-            // Rysowanie krawędzi
             g2d.setColor(Color.LIGHT_GRAY);
             for (Map.Entry<Integer, Set<Integer>> entry : graph.entrySet()) {
                 int node1 = entry.getKey();
@@ -105,7 +101,6 @@ public class Visualisation extends JFrame {
                 }
             }
 
-            // Rysowanie wierzchołków z kolorami partycji
             Color[] partitionColors = {
                     Color.RED, Color.BLUE, Color.GREEN, Color.ORANGE,
                     Color.MAGENTA, Color.CYAN, Color.PINK, Color.YELLOW
@@ -126,10 +121,9 @@ public class Visualisation extends JFrame {
                 }
             }
 
-            // Przywracamy oryginalną transformację dla legendy
             g2d.setTransform(oldTransform);
 
-            // Legenda
+
             g2d.setColor(Color.BLACK);
             g2d.drawString("Partitions:", width - 150, 30);
             g2d.drawString(String.format("Zoom: %.1fx", scale), 20, 30);
@@ -145,7 +139,6 @@ public class Visualisation extends JFrame {
         }
 
         private Point getNodePosition(int node, int width, int height) {
-            // Znajdź partycję węzła
             int partitionIndex = -1;
             for (int i = 0; i < partitions.size(); i++) {
                 if (partitions.get(i).contains(node)) {
@@ -158,17 +151,16 @@ public class Visualisation extends JFrame {
                 return new Point(0, 0);
             }
 
-            // Rozkład partycji w okręgach
             int numPartitions = partitions.size();
             double angle = 2 * Math.PI * partitionIndex / numPartitions;
 
             int radius = Math.min(width, height)/3;
 
-            // Pozycja środka partycji
+            // pozycja srodka partycji
             int partitionCenterX = (int)(radius * Math.cos(angle));
             int partitionCenterY = (int)(radius * Math.sin(angle));
 
-            // Pozycja węzła w partycji
+            // pozycja wezła w partycji
             int nodesInPartition = partitions.get(partitionIndex).size();
             int nodeIndex = new java.util.ArrayList<>(partitions.get(partitionIndex)).indexOf(node);
 

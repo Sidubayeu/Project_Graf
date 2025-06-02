@@ -8,38 +8,97 @@ public class Dividing {
         List<String> lines = new ArrayList<>();
 
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
-            for (int i = 0; i < 5; i++) {
-                lines.add(reader.readLine());
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (!line.trim().isEmpty()) {
+                    lines.add(line.trim());
+                }
             }
         }
 
-        // Считываем 4-ю и 5-ю строки (список рёбер и указатели на группы)
-        int[] edges = Arrays.stream(lines.get(3).split(";"))
-                .mapToInt(Integer::parseInt)
-                .toArray();
+        if (lines.size() < 5) {
+            throw new IOException("Plik nie zawiera wystarczającej liczby linii.");
+        }
 
-        int[] groupPtr = Arrays.stream(lines.get(4).split(";"))
-                .mapToInt(Integer::parseInt)
-                .toArray();
+        // Wczytanie pierwszych 3 linii – nagłówki
+        List<String> header = lines.subList(0, 3);
 
         Map<Integer, Set<Integer>> adjList = new HashMap<>();
 
-        for (int i = 0; i < groupPtr.length - 1; i++) {
-            int start = groupPtr[i];
-            int end = groupPtr[i + 1];
+        // Każda sekcja ma 2 linie: groupData i groupPtr
+        for (int i = 3; i + 1 < lines.size(); i += 2) {
+            String groupLine = lines.get(i);
+            String groupPtrLine = lines.get(i + 1);
 
-            for (int j = start; j < end; j++) {
-                for (int k = j + 1; k < end; k++) {
-                    int u = edges[j];
-                    int v = edges[k];
+            int[] edges = Arrays.stream(groupLine.split(";"))
+                    .filter(s -> !s.isEmpty())
+                    .mapToInt(Integer::parseInt)
+                    .toArray();
 
-                    adjList.computeIfAbsent(u, x -> new HashSet<>()).add(v);
-                    adjList.computeIfAbsent(v, x -> new HashSet<>()).add(u);
+            int[] groupPtr = Arrays.stream(groupPtrLine.split(";"))
+                    .filter(s -> !s.isEmpty())
+                    .mapToInt(Integer::parseInt)
+                    .toArray();
+
+            for (int j = 0; j < groupPtr.length - 1; j++) {
+                int start = groupPtr[j];
+                int end = groupPtr[j + 1];
+
+                for (int u = start; u < end; u++) {
+                    for (int v = u + 1; v < end; v++) {
+                        int a = edges[u];
+                        int b = edges[v];
+
+                        adjList.computeIfAbsent(a, x -> new HashSet<>()).add(b);
+                        adjList.computeIfAbsent(b, x -> new HashSet<>()).add(a);
+                    }
                 }
             }
         }
 
         return adjList;
+    }
+
+    public static boolean isFileAlreadyPartitioned(String filePath) throws IOException {
+        int nonEmptyLines = 0;
+        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (!line.trim().isEmpty()) {
+                    nonEmptyLines++;
+                }
+            }
+        }
+        return (nonEmptyLines - 3) / 2 > 1;
+    }
+
+    public static List<Set<Integer>> readExistingPartitions(String filePath) throws IOException {
+        List<String> lines = new ArrayList<>();
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (!line.trim().isEmpty()) {
+                    lines.add(line.trim());
+                }
+            }
+        }
+
+        List<Set<Integer>> partitions = new ArrayList<>();
+
+        for (int i = 3; i + 1 < lines.size(); i += 2) {
+            String groupLine = lines.get(i);
+
+            Set<Integer> part = new HashSet<>();
+            for (String s : groupLine.split(";")) {
+                if (!s.isEmpty()) {
+                    part.add(Integer.parseInt(s));
+                }
+            }
+            partitions.add(part);
+        }
+
+        return partitions;
     }
 
     public static List<Set<Integer>> partitionGraph(Map<Integer, Set<Integer>> graph, int numParts, int margin) {

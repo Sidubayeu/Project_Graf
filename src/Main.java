@@ -54,7 +54,6 @@ public class Main {
         JTextField partsField = new JTextField("2");
         partsField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
 
-        // Create arrow buttons for parts
         JButton partsDown = new JButton("←");
         JButton partsUp = new JButton("→");
 
@@ -86,12 +85,10 @@ public class Main {
         partsButtonPanel.add(partsUp);
         partsPanel.add(partsButtonPanel, BorderLayout.EAST);
 
-        // Margin
         JLabel marginLabel = new JLabel("Margines:");
         JTextField marginField = new JTextField("10");
         marginField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
 
-        // Create arrow buttons for margin
         JButton marginDown = new JButton("←");
         JButton marginUp = new JButton("→");
 
@@ -150,7 +147,7 @@ public class Main {
         frame.add(mainPanel);
         frame.setVisible(true);
 
-        // Browse input
+        // browse input
         browseInput.addActionListener(e -> {
             JFileChooser fileChooser = new JFileChooser();
             fileChooser.setCurrentDirectory(new File(System.getProperty("user.dir")));
@@ -159,7 +156,7 @@ public class Main {
             }
         });
 
-        // Browse output
+        // output
         browseOutput.addActionListener(e -> {
             JFileChooser fileChooser = new JFileChooser();
             fileChooser.setCurrentDirectory(new File(System.getProperty("user.dir")));
@@ -168,7 +165,7 @@ public class Main {
             }
         });
 
-        // Submit
+        // submit
         submitButton.addActionListener(e -> {
             try {
                 tryb = (String) trybBox.getSelectedItem();
@@ -177,15 +174,22 @@ public class Main {
                 parts = partsField.getText().isEmpty() ? 2 : Integer.parseInt(partsField.getText());
                 margin = marginField.getText().isEmpty() ? 10 : Integer.parseInt(marginField.getText());
 
-                if (tryb.equals("txt") || tryb.equals("bin")) {
-                    Map<Integer, Set<Integer>> podzial = Dividing.readGraph(nazw_plik);
-                    List<Set<Integer>> partition = Dividing.partitionGraph(podzial, parts, margin);
-                    Visualisation.showVisualisation(podzial, partition, margin);
-                } else if (tryb.equals("csrrg")) {
-                    Map<Integer, Set<Integer>> wczytany = Dividing.readGraph(nazw_plik);
-                    List<Set<Integer>> podzial = Dividing.partitionGraph(wczytany, parts, margin);
-                    Dividing.saveGraphWithPartition(nazw_plik, nazw_plik_output, podzial);
-                    Visualisation.showVisualisation(wczytany, podzial, margin);
+                if (tryb.equals("txt") || tryb.equals("bin") || tryb.equals("csrrg")) {
+                    boolean isPartitioned = Dividing.isFileAlreadyPartitioned(nazw_plik);
+                    if (isPartitioned) {
+                        Map<Integer, Set<Integer>> graph = Dividing.readGraph(nazw_plik);
+                        List<Set<Integer>> partition = Dividing.readExistingPartitions(nazw_plik);
+                        Visualisation.showVisualisation(graph, partition, margin);
+                    } else {
+                        Map<Integer, Set<Integer>> graph = Dividing.readGraph(nazw_plik);
+                        List<Set<Integer>> partition = Dividing.partitionGraph(graph, parts, margin);
+
+                        if (tryb.equals("csrrg")) {
+                            Dividing.saveGraphWithPartition(nazw_plik, nazw_plik_output, partition);
+                        }
+
+                        Visualisation.showVisualisation(graph, partition, margin);
+                    }
                 }
             } catch (IOException ex) {
                 JOptionPane.showMessageDialog(frame, "Błąd wczytywania pliku: " + ex.getMessage(), "Błąd", JOptionPane.ERROR_MESSAGE);
@@ -194,7 +198,7 @@ public class Main {
             }
         });
 
-        // Help
+        // pomoc
         helpButton.addActionListener(e -> {
             JFrame help = new JFrame("Pomoc");
             help.setSize(400, 300);
